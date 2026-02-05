@@ -15,7 +15,8 @@ from reportlab.platypus import (
     PageBreak,
     Table,
     TableStyle,
-    KeepTogether
+    KeepTogether,
+    HRFlowable
 )
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 
@@ -24,18 +25,38 @@ from ..utils.logging import get_logger
 
 logger = get_logger("render.pdf")
 
+# Category emoji text mappings for PDF (reportlab can't render all emoji)
+CATEGORY_LABELS = {
+    "Chips": "[CHIPS]",
+    "Hardware": "[CHIPS]",
+    "Research": "[RESEARCH]",
+    "Policy": "[POLICY]",
+    "Tools": "[TOOLS]",
+    "Business": "[BUSINESS]",
+    "Funding": "[FUNDING]",
+    "Robotics": "[ROBOTICS]",
+    "AGI/Safety": "[AGI/SAFETY]",
+    "Creative AI": "[CREATIVE AI]",
+}
+
+CATEGORY_COLORS = {
+    "Chips": colors.HexColor('#e74c3c'),
+    "Hardware": colors.HexColor('#e74c3c'),
+    "Research": colors.HexColor('#3498db'),
+    "Policy": colors.HexColor('#9b59b6'),
+    "Tools": colors.HexColor('#e67e22'),
+    "Business": colors.HexColor('#2ecc71'),
+    "Funding": colors.HexColor('#f39c12'),
+    "Robotics": colors.HexColor('#1abc9c'),
+    "AGI/Safety": colors.HexColor('#e91e63'),
+    "Creative AI": colors.HexColor('#ff6f61'),
+}
+
 
 class NewsletterPDF:
-    """PDF newsletter generator."""
+    """PDF newsletter generator with professional formatting."""
 
     def __init__(self, output_path: Path, mode: str = "daily"):
-        """
-        Initialize PDF generator.
-
-        Args:
-            output_path: Path to save PDF
-            mode: "daily" or "weekly"
-        """
         self.output_path = output_path
         self.mode = mode
         self.doc = SimpleDocTemplate(
@@ -43,7 +64,7 @@ class NewsletterPDF:
             pagesize=letter,
             rightMargin=0.75 * inch,
             leftMargin=0.75 * inch,
-            topMargin=1 * inch,
+            topMargin=0.75 * inch,
             bottomMargin=0.75 * inch
         )
         self.story = []
@@ -53,51 +74,80 @@ class NewsletterPDF:
         """Create custom paragraph styles."""
         styles = getSampleStyleSheet()
 
-        # Title style
         styles.add(ParagraphStyle(
             name='CustomTitle',
             parent=styles['Heading1'],
-            fontSize=24,
-            textColor=colors.HexColor('#1a1a1a'),
-            spaceAfter=6,
+            fontSize=28,
+            textColor=colors.HexColor('#1a1a2e'),
+            spaceAfter=4,
             alignment=TA_CENTER,
-            fontName='Helvetica-Bold'
+            fontName='Helvetica-Bold',
+            leading=34
         ))
 
-        # Subtitle style
         styles.add(ParagraphStyle(
             name='CustomSubtitle',
             parent=styles['Normal'],
-            fontSize=12,
+            fontSize=11,
             textColor=colors.HexColor('#666666'),
-            spaceAfter=12,
+            spaceAfter=10,
             alignment=TA_CENTER,
             fontName='Helvetica-Oblique'
         ))
 
-        # Section header
+        styles.add(ParagraphStyle(
+            name='DateRange',
+            parent=styles['Normal'],
+            fontSize=12,
+            textColor=colors.HexColor('#3498db'),
+            spaceAfter=4,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        ))
+
+        styles.add(ParagraphStyle(
+            name='Greeting',
+            parent=styles['Normal'],
+            fontSize=12,
+            textColor=colors.HexColor('#333333'),
+            spaceAfter=8,
+            fontName='Helvetica',
+            leading=16
+        ))
+
         styles.add(ParagraphStyle(
             name='SectionHeader',
             parent=styles['Heading2'],
             fontSize=16,
-            textColor=colors.HexColor('#2c3e50'),
-            spaceAfter=12,
-            spaceBefore=20,
-            fontName='Helvetica-Bold'
+            textColor=colors.HexColor('#1a1a2e'),
+            spaceAfter=10,
+            spaceBefore=16,
+            fontName='Helvetica-Bold',
+            borderWidth=0,
+            borderColor=colors.HexColor('#3498db'),
+            borderPadding=4,
         ))
 
-        # Story headline
         styles.add(ParagraphStyle(
             name='StoryHeadline',
             parent=styles['Heading3'],
-            fontSize=14,
+            fontSize=13,
             textColor=colors.HexColor('#2c3e50'),
-            spaceAfter=8,
-            spaceBefore=12,
-            fontName='Helvetica-Bold'
+            spaceAfter=6,
+            spaceBefore=8,
+            fontName='Helvetica-Bold',
+            leading=17
         ))
 
-        # Body text
+        styles.add(ParagraphStyle(
+            name='CategoryTag',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#ffffff'),
+            spaceAfter=4,
+            fontName='Helvetica-Bold',
+        ))
+
         styles.add(ParagraphStyle(
             name='CustomBody',
             parent=styles['Normal'],
@@ -108,7 +158,6 @@ class NewsletterPDF:
             leading=14
         ))
 
-        # Bullet point
         styles.add(ParagraphStyle(
             name='BulletPoint',
             parent=styles['Normal'],
@@ -119,162 +168,204 @@ class NewsletterPDF:
             leading=14
         ))
 
-        # Source style
+        styles.add(ParagraphStyle(
+            name='TOCEntry',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#333333'),
+            spaceAfter=6,
+            leftIndent=10,
+            leading=15
+        ))
+
         styles.add(ParagraphStyle(
             name='Source',
             parent=styles['Normal'],
             fontSize=8,
-            textColor=colors.HexColor('#666666'),
+            textColor=colors.HexColor('#888888'),
             spaceAfter=2
+        ))
+
+        styles.add(ParagraphStyle(
+            name='FooterText',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#999999'),
+            alignment=TA_CENTER,
+            spaceAfter=4
         ))
 
         return styles
 
     def _get_date_range(self) -> str:
-        """Get formatted date range for header."""
         end_date = datetime.now()
-
         if self.mode == "weekly":
             start_date = end_date - timedelta(days=10)
-            return f"{start_date.strftime('%B %d')} - {end_date.strftime('%B %d, %Y')}"
+            return f"{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
         else:
             return end_date.strftime("%B %d, %Y")
 
+    def _add_section_divider(self):
+        """Add a horizontal rule divider."""
+        self.story.append(Spacer(1, 0.1 * inch))
+        self.story.append(HRFlowable(
+            width="100%", thickness=1,
+            color=colors.HexColor('#e0e0e0'),
+            spaceAfter=8, spaceBefore=8
+        ))
+
     def add_header(self, intro: str):
-        """Add newsletter header."""
-        # Title
-        title = f"NEURAL EXPRESS {self.mode.upper()}"
-        self.story.append(Paragraph(title, self.styles['CustomTitle']))
+        """Section 1: Header with title, date range, tagline, greeting, overview."""
+        self.story.append(Paragraph("NEURAL EXPRESS WEEKLY", self.styles['CustomTitle']))
 
-        # Date range
         date_range = self._get_date_range()
-        self.story.append(Paragraph(date_range, self.styles['CustomSubtitle']))
+        self.story.append(Paragraph(date_range, self.styles['DateRange']))
 
-        # Tagline
         tagline = "Your AI news briefing curated by intelligent agents"
         self.story.append(Paragraph(tagline, self.styles['CustomSubtitle']))
 
-        self.story.append(Spacer(1, 0.2 * inch))
+        self.story.append(Spacer(1, 0.15 * inch))
 
-        # Introduction
         if intro:
-            self.story.append(Paragraph(intro, self.styles['CustomBody']))
-            self.story.append(Spacer(1, 0.2 * inch))
+            self.story.append(Paragraph(intro, self.styles['Greeting']))
 
-    def add_executive_summary(self, top_stories: List[RankedStory]):
-        """Add executive summary with top takeaways."""
-        self.story.append(Paragraph("Executive Summary", self.styles['SectionHeader']))
+        self._add_section_divider()
 
-        takeaways = []
+    def add_in_this_issue(self, top_stories: List[RankedStory]):
+        """Section 2: IN THIS ISSUE - numbered headlines with categories."""
+        self.story.append(Paragraph("IN THIS ISSUE", self.styles['SectionHeader']))
+
         for i, story in enumerate(top_stories[:5], 1):
-            summary_text = story.summary.headline if story.summary else story.news_item.title
-            takeaway = f"{i}. {summary_text}"
-            takeaways.append(takeaway)
+            if story.summary:
+                headline = story.summary.headline
+                category = story.summary.category
+            else:
+                headline = story.news_item.title
+                category = "News"
 
-        for takeaway in takeaways:
-            self.story.append(Paragraph(f"• {takeaway}", self.styles['BulletPoint']))
+            cat_label = CATEGORY_LABELS.get(category, "[NEWS]")
+            toc_entry = f"<b>{i}.</b> {headline} <font color='#3498db'>{cat_label}</font>"
+            self.story.append(Paragraph(toc_entry, self.styles['TOCEntry']))
 
-        self.story.append(Spacer(1, 0.2 * inch))
-
-    def add_table_of_contents(self, top_stories: List[RankedStory]):
-        """Add table of contents."""
-        self.story.append(Paragraph("Table of Contents", self.styles['SectionHeader']))
-
-        for i, story in enumerate(top_stories, 1):
-            headline = story.summary.headline if story.summary else story.news_item.title
-            category = story.summary.category if story.summary else "News"
-            toc_entry = f"{i}. {headline} ({category})"
-            self.story.append(Paragraph(toc_entry, self.styles['CustomBody']))
-
-        self.story.append(Spacer(1, 0.3 * inch))
+        self._add_section_divider()
 
     def add_main_story(self, story: RankedStory, story_number: int):
-        """Add a main story with full details."""
+        """Add a main story card with full details."""
         item = story.news_item
-        summary = story.summary
 
-        if not summary:
-            return
+        # Use summary if available, fall back to raw data
+        if story.summary:
+            headline = story.summary.headline
+            category = story.summary.category
+            hook = story.summary.hook
+            details = story.summary.details
+            why_matters = story.summary.why_it_matters
+            credit = story.summary.image_suggestion.credit_line
+        else:
+            headline = item.title
+            category = "News"
+            hook = item.summary_raw or item.content_snippet[:200]
+            details = [item.content_snippet[:200]] if item.content_snippet else ["Details pending."]
+            why_matters = f"A developing story from {item.source_name}."
+            credit = f"Source: {item.source_name}"
 
-        # Category and headline
-        category_emoji = self._get_category_emoji(summary.category)
-        headline = f"{story_number}. {category_emoji} {summary.headline}"
+        cat_label = CATEGORY_LABELS.get(category, "[NEWS]")
+        cat_color = CATEGORY_COLORS.get(category, colors.HexColor('#333333'))
 
         story_elements = []
 
-        # Headline
-        story_elements.append(Paragraph(headline, self.styles['StoryHeadline']))
+        # Story number + headline
+        headline_text = f"<b>{story_number}. {cat_label} {headline}</b>"
+        story_elements.append(Paragraph(headline_text, self.styles['StoryHeadline']))
 
-        # Image placeholder
-        image_credit = f"<i>{summary.image_suggestion.credit_line}</i>"
-        story_elements.append(Paragraph(image_credit, self.styles['Source']))
-        story_elements.append(Spacer(1, 0.1 * inch))
+        # Category and source line
+        meta_line = f"<font color='{cat_color}'><b>{category}</b></font> | {item.source_name}"
+        story_elements.append(Paragraph(meta_line, self.styles['Source']))
+        story_elements.append(Spacer(1, 0.08 * inch))
 
         # Hook
-        story_elements.append(Paragraph(summary.hook, self.styles['CustomBody']))
-        story_elements.append(Spacer(1, 0.1 * inch))
+        story_elements.append(Paragraph(hook, self.styles['CustomBody']))
+        story_elements.append(Spacer(1, 0.08 * inch))
 
         # Details
         story_elements.append(Paragraph("<b>The details:</b>", self.styles['CustomBody']))
-        for detail in summary.details:
-            story_elements.append(Paragraph(f"• {detail}", self.styles['BulletPoint']))
+        for detail in details:
+            # Escape XML special chars for reportlab
+            safe_detail = detail.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            story_elements.append(Paragraph(f"\u2022 {safe_detail}", self.styles['BulletPoint']))
 
-        story_elements.append(Spacer(1, 0.1 * inch))
+        story_elements.append(Spacer(1, 0.08 * inch))
 
         # Why it matters
-        why_matters = f"<b>Why it matters:</b> {summary.why_it_matters}"
-        story_elements.append(Paragraph(why_matters, self.styles['CustomBody']))
+        safe_why = why_matters.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        story_elements.append(Paragraph(f"<b>Why it matters:</b> {safe_why}", self.styles['CustomBody']))
 
-        # Source link
+        # Read more link
         source_text = f"<link href='{item.url}' color='blue'>Read more at {item.source_name}</link>"
-        story_elements.append(Spacer(1, 0.05 * inch))
+        story_elements.append(Spacer(1, 0.04 * inch))
         story_elements.append(Paragraph(source_text, self.styles['Source']))
 
-        story_elements.append(Spacer(1, 0.2 * inch))
+        # Add all story elements directly (no KeepTogether+Table nesting
+        # which can overflow when content is tall)
+        for el in story_elements:
+            self.story.append(el)
 
-        # Keep story together on same page
-        self.story.append(KeepTogether(story_elements))
+        # Visual divider between stories
+        self.story.append(Spacer(1, 0.08 * inch))
+        self.story.append(HRFlowable(
+            width="100%", thickness=0.5,
+            color=colors.HexColor('#e0e0e0'),
+            spaceAfter=8, spaceBefore=4
+        ))
+        self.story.append(Spacer(1, 0.08 * inch))
 
     def add_developing_stories(self, story_chains: dict):
-        """Add story evolution section for multi-day stories."""
+        """Section 5: Developing stories with timelines."""
         if not story_chains:
             return
 
         self.story.append(PageBreak())
-        self.story.append(Paragraph("Developing Stories", self.styles['SectionHeader']))
+        self.story.append(Paragraph("DEVELOPING STORIES", self.styles['SectionHeader']))
 
-        explanation = (
-            "These stories evolved over multiple days. "
-            "Each chain shows how a story developed throughout the week."
-        )
+        explanation = "Stories that evolved over multiple days this week."
         self.story.append(Paragraph(explanation, self.styles['CustomBody']))
-        self.story.append(Spacer(1, 0.15 * inch))
+        self.story.append(Spacer(1, 0.1 * inch))
 
         for chain_id, stories in story_chains.items():
-            if len(stories) > 1:
-                # Chain header
-                first_story = stories[0]
-                chain_title = first_story.summary.headline if first_story.summary else first_story.news_item.title
-                self.story.append(Paragraph(f"<b>Story Chain:</b> {chain_title}", self.styles['StoryHeadline']))
+            if len(stories) < 2:
+                continue
 
-                # Timeline
-                for i, story in enumerate(sorted(stories, key=lambda s: s.news_item.published_at), 1):
-                    date_str = story.news_item.published_at.strftime("%b %d")
-                    headline = story.summary.headline if story.summary else story.news_item.title
-                    source = story.news_item.source_name
+            sorted_stories = sorted(stories, key=lambda s: s.news_item.published_at)
 
-                    timeline_entry = f"• <b>{date_str}:</b> {headline} <i>({source})</i>"
-                    self.story.append(Paragraph(timeline_entry, self.styles['BulletPoint']))
+            first = sorted_stories[0]
+            chain_title = first.summary.headline if first.summary else first.news_item.title
+            self.story.append(Paragraph(f"<b>{chain_title}</b>", self.styles['StoryHeadline']))
 
-                self.story.append(Spacer(1, 0.15 * inch))
+            for story in sorted_stories:
+                date_str = story.news_item.published_at.strftime("%b %d")
+                headline = story.summary.headline if story.summary else story.news_item.title
+                source = story.news_item.source_name
+
+                safe_headline = headline.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                entry = f"\u2022 <b>{date_str}:</b> {safe_headline} <i>({source})</i>"
+                self.story.append(Paragraph(entry, self.styles['BulletPoint']))
+
+            # Add significance from latest story
+            latest = sorted_stories[-1]
+            if latest.summary:
+                safe_sig = latest.summary.why_it_matters.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                self.story.append(Spacer(1, 0.05 * inch))
+                self.story.append(Paragraph(f"<i>What it means: {safe_sig}</i>", self.styles['CustomBody']))
+
+            self.story.append(Spacer(1, 0.15 * inch))
 
     def add_quick_bites(self, secondary_stories: List[RankedStory]):
-        """Add quick bites section."""
+        """Section 4: Quick bites."""
         if not secondary_stories:
             return
 
         self.story.append(PageBreak())
-        self.story.append(Paragraph("Quick Bites", self.styles['SectionHeader']))
+        self.story.append(Paragraph("QUICK BITES", self.styles['SectionHeader']))
 
         for story in secondary_stories:
             item = story.news_item
@@ -286,52 +377,55 @@ class NewsletterPDF:
                 headline = item.title
                 snippet = item.content_snippet[:150]
 
-            quick_bite = f"<b>{headline}</b> — {snippet} <i>({item.source_name})</i>"
-            self.story.append(Paragraph(f"• {quick_bite}", self.styles['BulletPoint']))
-            self.story.append(Spacer(1, 0.08 * inch))
+            safe_headline = headline.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            safe_snippet = snippet.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            quick_bite = f"\u2022 <b>{safe_headline}</b> \u2014 {safe_snippet} <i>({item.source_name})</i>"
+            self.story.append(Paragraph(quick_bite, self.styles['BulletPoint']))
+            self.story.append(Spacer(1, 0.06 * inch))
 
     def add_top_jobs(self):
-        """Add top AI jobs section (placeholder)."""
-        self.story.append(PageBreak())
-        self.story.append(Paragraph("Top AI Roles This Week", self.styles['SectionHeader']))
+        """Section 6: Top AI jobs."""
+        self.story.append(Spacer(1, 0.2 * inch))
+        self._add_section_divider()
+        self.story.append(Paragraph("TOP AI JOBS THIS WEEK", self.styles['SectionHeader']))
 
         jobs = [
-            ("Senior ML Engineer", "OpenAI", "San Francisco, CA - Build next-gen language models"),
-            ("AI Research Scientist", "Google DeepMind", "London, UK - Advance AGI research"),
-            ("Applied AI Lead", "Anthropic", "Remote - Lead safety research initiatives"),
-            ("Computer Vision Engineer", "Tesla", "Palo Alto, CA - Autonomous driving AI"),
-            ("NLP Engineer", "Meta", "Menlo Park, CA - Large-scale NLP systems"),
+            ("Senior ML Engineer", "OpenAI", "San Francisco, CA", "Build next-gen language models"),
+            ("AI Research Scientist", "Google DeepMind", "London, UK", "Advance AGI research"),
+            ("Applied AI Lead", "Anthropic", "Remote", "Lead safety research initiatives"),
+            ("Computer Vision Engineer", "Tesla", "Palo Alto, CA", "Autonomous driving AI"),
+            ("NLP Engineer", "Meta", "Menlo Park, CA", "Large-scale NLP systems"),
         ]
 
-        for title, company, description in jobs:
-            job_text = f"<b>{title}</b> at {company} — {description}"
-            self.story.append(Paragraph(f"• {job_text}", self.styles['BulletPoint']))
-            self.story.append(Spacer(1, 0.08 * inch))
+        for title, company, location, description in jobs:
+            job_text = f"\u2022 <b>{title}</b> at {company} \u2014 {location} \u2014 {description}"
+            self.story.append(Paragraph(job_text, self.styles['BulletPoint']))
+            self.story.append(Spacer(1, 0.05 * inch))
 
     def add_trending_tools(self):
-        """Add trending AI tools section (placeholder)."""
-        self.story.append(PageBreak())
-        self.story.append(Paragraph("Trending AI Tools", self.styles['SectionHeader']))
+        """Section 7: Trending AI tools."""
+        self.story.append(Spacer(1, 0.2 * inch))
+        self._add_section_divider()
+        self.story.append(Paragraph("TRENDING AI TOOLS", self.styles['SectionHeader']))
 
         tools = [
-            ("Claude 3.5 Sonnet", "Advanced AI assistant with extended context"),
+            ("Claude Code", "AI-powered coding assistant for the terminal"),
             ("Midjourney v6", "State-of-the-art text-to-image generation"),
             ("LangChain", "Framework for building LLM applications"),
             ("Replicate", "Run and deploy ML models via API"),
-            ("Weights & Biases", "ML experiment tracking and visualization"),
+            ("Weights &amp; Biases", "ML experiment tracking and visualization"),
         ]
 
         for tool_name, description in tools:
-            tool_text = f"<b>{tool_name}</b> — {description}"
-            self.story.append(Paragraph(f"• {tool_text}", self.styles['BulletPoint']))
-            self.story.append(Spacer(1, 0.08 * inch))
+            tool_text = f"\u2022 <b>{tool_name}</b> \u2014 {description}"
+            self.story.append(Paragraph(tool_text, self.styles['BulletPoint']))
+            self.story.append(Spacer(1, 0.05 * inch))
 
     def add_sources(self, all_stories: List[RankedStory]):
-        """Add sources list."""
+        """Section 8: Sources."""
         self.story.append(PageBreak())
-        self.story.append(Paragraph("Sources", self.styles['SectionHeader']))
+        self.story.append(Paragraph("SOURCES", self.styles['SectionHeader']))
 
-        # Collect unique sources
         sources = []
         seen_urls = set()
 
@@ -341,11 +435,9 @@ class NewsletterPDF:
                 sources.append((item.source_name, item.url))
                 seen_urls.add(item.url)
 
-        # Create table
         source_data = []
         for i, (source_name, url) in enumerate(sources, 1):
-            # Truncate long URLs
-            display_url = url if len(url) < 80 else url[:77] + "..."
+            display_url = url if len(url) < 70 else url[:67] + "..."
             source_data.append([f"{i}.", source_name, display_url])
 
         if source_data:
@@ -353,35 +445,39 @@ class NewsletterPDF:
             source_table.setStyle(TableStyle([
                 ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
                 ('FONTSIZE', (0, 0), (-1, -1), 8),
-                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#333333')),
-                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#555555')),
+                ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+                ('ALIGN', (1, 0), (-1, -1), 'LEFT'),
                 ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('LINEBELOW', (0, 0), (-1, -2), 0.5, colors.HexColor('#eeeeee')),
             ]))
-
             self.story.append(source_table)
 
     def add_footer(self):
-        """Add newsletter footer."""
-        self.story.append(Spacer(1, 0.3 * inch))
+        """Section 9: Footer."""
+        self.story.append(Spacer(1, 0.4 * inch))
+        self._add_section_divider()
+        self.story.append(Spacer(1, 0.15 * inch))
 
-        footer_text = (
-            "<i>Generated with Neural Express - "
-            "AI-powered news curation by Claude Code</i>"
-        )
-        self.story.append(Paragraph(footer_text, self.styles['Source']))
-
-    def _get_category_emoji(self, category: str) -> str:
-        """Get emoji for category."""
-        emojis = {
-            "Chips": "💻",
-            "Research": "🔬",
-            "Policy": "⚖️",
-            "Tools": "🛠️",
-            "Business": "📢",
-            "Funding": "💰"
-        }
-        return emojis.get(category, "📰")
+        self.story.append(Paragraph(
+            "Thanks for reading Neural Express!",
+            self.styles['FooterText']
+        ))
+        self.story.append(Paragraph(
+            "Reply to this email with feedback or questions.",
+            self.styles['FooterText']
+        ))
+        self.story.append(Spacer(1, 0.1 * inch))
+        self.story.append(Paragraph(
+            "\u00a9 2026 Neural Express. All rights reserved.",
+            self.styles['FooterText']
+        ))
+        self.story.append(Paragraph(
+            "<i>Generated with Neural Express \u2014 AI-powered news curation</i>",
+            self.styles['FooterText']
+        ))
 
     def build(self):
         """Build and save PDF."""
@@ -402,7 +498,7 @@ def export_to_pdf(
     story_chains: Optional[dict] = None
 ) -> None:
     """
-    Export newsletter to PDF.
+    Export newsletter to PDF with all 9 sections.
 
     Args:
         top_stories: List of main stories
@@ -416,38 +512,35 @@ def export_to_pdf(
 
     pdf = NewsletterPDF(output_path, mode)
 
-    # Header
+    # Section 1: Header
     pdf.add_header(intro)
 
-    # Executive Summary
-    pdf.add_executive_summary(top_stories)
+    # Section 2: In This Issue
+    pdf.add_in_this_issue(top_stories)
 
-    # Table of Contents
-    pdf.add_table_of_contents(top_stories)
-
-    # Main stories
-    pdf.story.append(PageBreak())
-    pdf.story.append(Paragraph("Latest Developments", pdf.styles['SectionHeader']))
-
+    # Section 3: Top Stories
+    pdf.story.append(Paragraph("TOP STORIES", pdf.styles['SectionHeader']))
     for i, story in enumerate(top_stories, 1):
         pdf.add_main_story(story, i)
 
-    # Developing stories (if weekly mode)
+    # Section 4: Quick Bites
+    pdf.add_quick_bites(secondary_stories)
+
+    # Section 5: Developing Stories (weekly mode)
     if mode == "weekly" and story_chains:
         pdf.add_developing_stories(story_chains)
 
-    # Quick bites
-    pdf.add_quick_bites(secondary_stories)
-
-    # Jobs and tools
+    # Section 6: Top AI Jobs
     pdf.add_top_jobs()
+
+    # Section 7: Trending Tools
     pdf.add_trending_tools()
 
-    # Sources
+    # Section 8: Sources
     all_stories = top_stories + secondary_stories
     pdf.add_sources(all_stories)
 
-    # Footer
+    # Section 9: Footer
     pdf.add_footer()
 
     # Build PDF

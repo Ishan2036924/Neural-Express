@@ -180,7 +180,8 @@ class NeuralExpress:
             top_stories,
             secondary_stories,
             intro,
-            mode
+            mode,
+            story_chains
         )
 
         # 8. Save

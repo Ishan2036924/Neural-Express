@@ -9,6 +9,55 @@ from .prompts import get_story_summary_prompt
 logger = get_logger("summarize")
 
 
+def _create_fallback_summary(story: RankedStory) -> StorySummary:
+    """
+    Create a fallback summary from raw NewsItem data when LLM fails.
+
+    Args:
+        story: Ranked story with raw news item data
+
+    Returns:
+        StorySummary built from available raw data
+    """
+    item = story.news_item
+
+    # Derive category from tags
+    tag_category_map = {
+        "chips": "Chips", "hardware": "Chips", "gpu": "Chips",
+        "research": "Research", "paper": "Research", "study": "Research",
+        "policy": "Policy", "regulation": "Policy", "law": "Policy",
+        "tools": "Tools", "developer-tools": "Tools", "framework": "Tools",
+        "funding": "Funding", "investment": "Funding", "startup": "Funding",
+        "agents": "Tools", "llm": "Research", "open-source": "Tools",
+        "robotics": "Robotics", "robot": "Robotics",
+        "safety": "AGI/Safety", "alignment": "AGI/Safety",
+    }
+    category = "Business"
+    for tag in item.tags:
+        if tag.lower() in tag_category_map:
+            category = tag_category_map[tag.lower()]
+            break
+
+    # Build details from content snippet
+    snippet = item.content_snippet or item.summary_raw or ""
+    sentences = [s.strip() for s in snippet.replace("\n", ". ").split(". ") if s.strip()]
+    details = sentences[:4] if sentences else [snippet[:200]] if snippet else ["Details pending."]
+
+    return StorySummary(
+        headline=item.title[:70],
+        hook=item.summary_raw[:200] if item.summary_raw else item.title,
+        details=details,
+        why_it_matters=f"This story from {item.source_name} highlights important developments in the AI landscape.",
+        category=category,
+        image_suggestion=ImageSuggestion(
+            search_keywords=item.tags[:4] if item.tags else ["AI", "technology"],
+            credit_line=f"Image source: {item.source_name}",
+            source_url=None,
+            fallback_banner=True
+        )
+    )
+
+
 def summarize_story(
     story: RankedStory,
     llm_client: LLMClient
@@ -89,31 +138,33 @@ async def summarize_stories(
     llm_client: LLMClient
 ) -> list[RankedStory]:
     """
-    Summarize multiple stories (can be parallelized).
+    Summarize multiple stories. Never drops stories — uses fallback summaries
+    when LLM fails to ensure all sections have content.
 
     Args:
         stories: List of ranked stories
         llm_client: LLM client
 
     Returns:
-        List of ranked stories with summaries attached
+        List of ranked stories with summaries attached (always same length as input)
     """
     logger.info(f"Summarizing {len(stories)} stories")
 
-    summarized = []
+    llm_success = 0
 
     for story in stories:
         summary = summarize_story(story, llm_client)
 
         if summary:
             story.summary = summary
-            summarized.append(story)
+            llm_success += 1
         else:
-            logger.warning(f"Skipping story without summary: {story.news_item.title[:50]}")
+            logger.warning(f"Using fallback summary for: {story.news_item.title[:50]}")
+            story.summary = _create_fallback_summary(story)
 
-    logger.info(f"Successfully summarized {len(summarized)} stories")
+    logger.info(f"Summarized {len(stories)} stories ({llm_success} via LLM, {len(stories) - llm_success} fallback)")
 
-    return summarized
+    return stories
 
 
 def generate_newsletter_intro(
