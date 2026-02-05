@@ -1,0 +1,210 @@
+# Neural Express Default Configuration
+
+# RSS Feeds
+feeds:
+  # Original Feeds
+  - name: TechCrunch AI
+    url: https://techcrunch.com/category/artificial-intelligence/feed/
+    credibility: 0.85
+  - name: VentureBeat AI
+    url: https://venturebeat.com/category/ai/feed/
+    credibility: 0.85
+  - name: MIT Technology Review
+    url: https://www.technologyreview.com/feed/
+    credibility: 0.95
+  - name: The Verge AI
+    url: https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
+    credibility: 0.80
+  - name: Ars Technica AI
+    url: https://feeds.arstechnica.com/arstechnica/technology-lab
+    credibility: 0.85
+  - name: Wired AI
+    url: https://www.wired.com/feed/tag/ai/latest/rss
+    credibility: 0.85
+  - name: The Rundown AI
+    url: https://www.therundown.ai/feed
+    credibility: 0.75
+  - name: AI News
+    url: https://www.artificialintelligence-news.com/feed/
+    credibility: 0.70
+  - name: Google AI Blog
+    url: https://blog.google/technology/ai/rss/
+    credibility: 0.95
+  - name: OpenAI Blog
+    url: https://openai.com/blog/rss/
+    credibility: 0.95
+  - name: Anthropic News
+    url: https://www.anthropic.com/news/rss
+    credibility: 0.95
+  - name: Hugging Face Blog
+    url: https://huggingface.co/blog/feed.xml
+    credibility: 0.90
+  - name: Reuters Tech
+    url: https://www.reutersagency.com/feed/?best-topics=tech
+    credibility: 0.95
+
+  # News & Media
+  - name: Reuters AI
+    url: https://www.reuters.com/technology/artificial-intelligence/rss
+    credibility: 0.95
+  - name: Bloomberg Tech
+    url: https://feeds.bloomberg.com/technology/news.rss
+    credibility: 0.90
+  - name: CNBC Tech
+    url: https://www.cnbc.com/id/19854910/device/rss/rss.html
+    credibility: 0.85
+  - name: Forbes AI
+    url: https://www.forbes.com/ai/feed/
+    credibility: 0.85
+  - name: BBC Tech
+    url: https://feeds.bbci.co.uk/news/technology/rss.xml
+    credibility: 0.90
+  - name: The Guardian Tech
+    url: https://www.theguardian.com/technology/rss
+    credibility: 0.90
+  - name: NYT Tech
+    url: https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml
+    credibility: 0.95
+
+  # AI-Specific
+  - name: The Batch (DeepLearning.AI)
+    url: https://www.deeplearning.ai/the-batch/feed/
+    credibility: 0.95
+  - name: Towards AI
+    url: https://pub.towardsai.net/feed
+    credibility: 0.80
+  - name: Analytics Vidhya
+    url: https://www.analyticsvidhya.com/feed/
+    credibility: 0.75
+  - name: KDnuggets
+    url: https://www.kdnuggets.com/feed
+    credibility: 0.85
+  - name: Import AI Newsletter
+    url: https://importai.substack.com/feed
+    credibility: 0.85
+  - name: Last Week in AI
+    url: https://lastweekin.ai/feed
+    credibility: 0.85
+
+  # Tech News Aggregators
+  - name: TechMeme
+    url: https://www.techmeme.com/feed.xml
+    credibility: 0.85
+  - name: Hacker News AI
+    url: https://hnrss.org/newest?q=AI+OR+LLM
+    credibility: 0.80
+  - name: Dev.to AI
+    url: https://dev.to/feed/tag/ai
+    credibility: 0.70
+
+  # AI Newsletters
+  - name: Ben's Bites
+    url: https://bensbites.beehiiv.com/feed
+    credibility: 0.80
+  - name: The Neuron
+    url: https://www.theneurondaily.com/feed
+    credibility: 0.75
+  - name: Superhuman AI
+    url: https://superhumanai.beehiiv.com/feed
+    credibility: 0.75
+
+  # Research & Company Blogs
+  - name: arXiv AI
+    url: http://arxiv.org/rss/cs.AI
+    credibility: 0.95
+  - name: arXiv ML
+    url: http://arxiv.org/rss/cs.LG
+    credibility: 0.95
+  - name: Google Research
+    url: https://blog.research.google/feeds/posts/default
+    credibility: 0.95
+  - name: Meta AI Blog
+    url: https://ai.meta.com/blog/rss/
+    credibility: 0.95
+  - name: Microsoft AI Blog
+    url: https://blogs.microsoft.com/ai/feed/
+    credibility: 0.95
+  - name: NVIDIA AI Blog
+    url: https://blogs.nvidia.com/feed/
+    credibility: 0.95
+  - name: Amazon Science
+    url: https://www.amazon.science/index.rss
+    credibility: 0.95
+  - name: Papers With Code
+    url: https://paperswithcode.com/rss
+    credibility: 0.85
+
+# LLM Configuration
+llm:
+  model: gpt-4o-mini
+  temperature: 0.7
+  max_tokens: 1000
+
+# Embeddings Configuration
+embeddings:
+  model: sentence-transformers/all-MiniLM-L6-v2
+  dimension: 384
+
+# Deduplication Configuration
+dedupe:
+  threshold: 0.85  # Similarity threshold for same-day duplicates
+  story_chain_threshold: 0.75  # Similarity threshold for multi-day story chains
+  min_cluster_size: 1
+
+# Ranking Weights
+ranking:
+  weights:
+    recency: 0.30
+    credibility: 0.25
+    engagement: 0.15
+    uniqueness: 0.15
+    relevance: 0.15
+
+# Story Selection
+selection:
+  top_stories: 5
+  secondary_stories: 10
+  min_score: 0.3
+
+# Content Processing
+processing:
+  content_snippet_length: 500
+  max_summary_bullets: 6
+  min_summary_bullets: 3
+
+# Time Windows (in hours)
+time_windows:
+  daily: 24
+  weekly: 240  # 10 days for better story tracking
+
+# Weekly Mode Configuration
+weekly_lookback_days: 10
+
+# Relevance Keywords for AI/ML content
+relevance_keywords:
+  - artificial intelligence
+  - machine learning
+  - deep learning
+  - neural network
+  - llm
+  - large language model
+  - gpt
+  - generative ai
+  - transformer
+  - diffusion
+  - computer vision
+  - nlp
+  - natural language
+  - reinforcement learning
+  - agent
+  - ai model
+  - foundation model
+  - multimodal
+  - embedding
+
+# Email Delivery
+email:
+  enabled: true
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  subject_template: "NEURAL EXPRESS Weekly - {date}"

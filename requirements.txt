@@ -1,0 +1,40 @@
+# Neural Express - Requirements
+
+# Core dependencies
+python-dateutil>=2.8.2
+pydantic>=2.5.0
+pyyaml>=6.0
+
+# HTTP and RSS
+httpx>=0.25.0
+feedparser>=6.0.10
+
+# AI/ML
+openai>=1.10.0
+sentence-transformers>=2.2.2
+faiss-cpu>=1.7.4
+torch>=2.1.0
+
+# Data processing
+numpy>=1.24.0
+pandas>=2.1.0
+
+# CLI
+click>=8.1.7
+rich>=13.7.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# PDF Generation
+reportlab>=4.0.0
+Pillow>=10.0.0
+
+# Development
+black>=23.12.0
+ruff>=0.1.9
